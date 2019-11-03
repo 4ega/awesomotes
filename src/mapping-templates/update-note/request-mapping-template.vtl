@@ -1,0 +1,25 @@
+{
+    "version" : "2017-02-28",
+    "operation" : "UpdateItem",
+    "key" : {
+        "id" : { "S" : "${context.arguments.note.userId}" },
+        "type": { "S": "note#${context.arguments.note.noteId}" },
+    },
+    "update" : {
+        #if( $context.arguments.note.text != '' )
+            "expression": "SET #t = :text, #u = :updatedAt",
+        #else
+            "expression": "REMOVE #t SET #u = :updatedAt",
+        #end
+        "expressionNames": {
+            "#t": "text",
+            "#u": "updatedAt",
+        },
+        "expressionValues" : {
+            ":updatedAt": { "S" : "${context.arguments.note.updatedAt}"},
+            #if( $context.arguments.note.text != '' )
+                ":text": { "S" : "${context.arguments.note.text}"},
+            #end
+        }
+    }
+}

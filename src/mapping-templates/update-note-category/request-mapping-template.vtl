@@ -1,0 +1,17 @@
+{
+    "version" : "2017-02-28",
+    "operation" : "UpdateItem",
+    "key" : {
+        "id" : { "S" : "${context.arguments.userId}" },
+        "type": { "S": "note#${context.arguments.noteId}" },
+    },
+    "update" : {
+        "expression": "SET #c = :categoryId",
+        "expressionNames": {
+            "#c": "categoryId",
+        },
+        "expressionValues" : {
+            ":categoryId": { "S" : "${context.arguments.categoryId}"},
+        }
+    }
+}

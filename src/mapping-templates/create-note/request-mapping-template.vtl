@@ -1,0 +1,14 @@
+{
+    "version" : "2017-02-28",
+    "operation" : "PutItem",
+    "key" : {
+        "id" : { "S" : "${context.arguments.note.userId}" },
+        "type": { "S": "note#${context.arguments.note.noteId}" },
+    },
+    "attributeValues" : {
+        "noteId": { "S" : "${context.arguments.note.noteId}"},
+        "categoryId": { "S" : "${context.arguments.note.categoryId}" },
+        "title": { "S" : "${context.arguments.note.title}"},
+        "updatedAt": { "S" : "${context.arguments.note.updatedAt}"},
+    }
+}

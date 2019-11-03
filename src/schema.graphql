@@ -1,0 +1,43 @@
+type Note {
+  noteId: String!
+  categoryId: String!
+  title: String!
+  text: String
+  updatedAt: String!
+}
+
+input iNote {
+  noteId: String!
+  userId: String!
+  categoryId: String
+  title: String
+  text: String
+  updatedAt: String!
+}
+
+type DeleteNotePayload {
+  noteId: String
+  deleted: Boolean
+}
+
+type Category {
+  id: String!
+}
+
+type Query {
+  getCategories(id: String!): [Category]
+  getNotes(userId: String!, categoryId: String): [Note]
+}
+
+type Mutation {
+  createNote(note: iNote): Note
+  updateNote(note: iNote): Note
+  updateNoteCategory(userId: String!, noteId: String!, categoryId: String!): Note
+  deleteNote(userId: String!, noteId: String!): DeleteNotePayload
+  createCategory(id: String!, categories: [String]!): [Category]
+}
+
+schema {
+  query: Query
+  mutation: Mutation
+}

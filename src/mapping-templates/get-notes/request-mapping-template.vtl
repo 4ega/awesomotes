@@ -1,0 +1,16 @@
+{
+    "version" : "2017-02-28",
+    "operation" : "Query",
+    "query" : {
+        "expression": "id = :id and begins_with(#type, :type)",
+        "expressionNames": { "#type": "type" },
+        "expressionValues" : {
+            ":id" : {
+                "S" : "${ctx.args.userId}"
+            },
+            ":type": {
+                "S": "note"
+            }
+        }
+    }
+}

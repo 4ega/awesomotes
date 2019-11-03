@@ -1,0 +1,627 @@
+{
+  "service": {
+    "service": "awesomotes",
+    "serviceObject": {
+      "name": "awesomotes"
+    },
+    "provider": {
+      "stage": "dev",
+      "variableSyntax": "\\${([ ~:a-zA-Z0-9._@'\",\\-\\/\\(\\)*]+?)}",
+      "name": "aws",
+      "region": "eu-west-1",
+      "runtime": "nodejs10.x",
+      "iamRoleStatements": [
+        {
+          "Effect": "Allow",
+          "Action": [
+            "dynamodb:*"
+          ],
+          "Resource": "*"
+        }
+      ],
+      "versionFunctions": true,
+      "remoteFunctionData": null,
+      "compiledCloudFormationTemplate": {
+        "AWSTemplateFormatVersion": "2010-09-09",
+        "Description": "The AWS CloudFormation template for this Serverless application",
+        "Resources": {
+          "ServerlessDeploymentBucket": {
+            "Type": "AWS::S3::Bucket",
+            "Properties": {
+              "BucketEncryption": {
+                "ServerSideEncryptionConfiguration": [
+                  {
+                    "ServerSideEncryptionByDefault": {
+                      "SSEAlgorithm": "AES256"
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          "Users": {
+            "Type": "AWS::DynamoDB::Table",
+            "Properties": {
+              "TableName": "Notes",
+              "AttributeDefinitions": [
+                {
+                  "AttributeName": "id",
+                  "AttributeType": "S"
+                },
+                {
+                  "AttributeName": "type",
+                  "AttributeType": "S"
+                }
+              ],
+              "KeySchema": [
+                {
+                  "AttributeName": "id",
+                  "KeyType": "HASH"
+                },
+                {
+                  "AttributeName": "type",
+                  "KeyType": "RANGE"
+                }
+              ],
+              "ProvisionedThroughput": {
+                "ReadCapacityUnits": 1,
+                "WriteCapacityUnits": 1
+              }
+            }
+          },
+          "AppSyncRole": {
+            "Type": "AWS::IAM::Role",
+            "Properties": {
+              "RoleName": "AppSyncRole",
+              "AssumeRolePolicyDocument": {
+                "Version": "2012-10-17",
+                "Statement": [
+                  {
+                    "Effect": "Allow",
+                    "Principal": {
+                      "Service": [
+                        "appsync.amazonaws.com"
+                      ]
+                    },
+                    "Action": [
+                      "sts:AssumeRole"
+                    ]
+                  }
+                ]
+              },
+              "Policies": [
+                {
+                  "PolicyName": "Lambda-AppSyncRole-Policy",
+                  "PolicyDocument": {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                      {
+                        "Effect": "Allow",
+                        "Action": [
+                          "lambda:invokeFunction"
+                        ],
+                        "Resource": "*"
+                      },
+                      {
+                        "Effect": "Allow",
+                        "Action": [
+                          "dynamodb:*"
+                        ],
+                        "Resource": "*"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          "GraphQlApi": {
+            "Type": "AWS::AppSync::GraphQLApi",
+            "Properties": {
+              "Name": "Roadrunner",
+              "AuthenticationType": "API_KEY",
+              "AdditionalAuthenticationProviders": []
+            }
+          },
+          "GraphQlApiKeyDefault": {
+            "Type": "AWS::AppSync::ApiKey",
+            "Properties": {
+              "ApiId": {
+                "Fn::GetAtt": [
+                  "GraphQlApi",
+                  "ApiId"
+                ]
+              },
+              "Description": "serverless-appsync-plugin: AppSync API Key for GraphQlApiKeyDefault",
+              "Expires": 1604307956
+            }
+          },
+          "GraphQlSchema": {
+            "Type": "AWS::AppSync::GraphQLSchema",
+            "Properties": {
+              "Definition": "type Note {\n  noteId: String!\n  categoryId: String!\n  title: String!\n  text: String\n  updatedAt: String!\n}\n\ninput iNote {\n  noteId: String!\n  userId: String!\n  categoryId: String\n  title: String\n  text: String\n  updatedAt: String!\n}\n\ntype DeleteNotePayload {\n  noteId: String\n  deleted: Boolean\n}\n\ntype Category {\n  id: String!\n}\n\ntype Query {\n  getCategories(id: String!): [Category]\n  getNotes(userId: String!, categoryId: String): [Note]\n}\n\ntype Mutation {\n  createNote(note: iNote): Note\n  updateNote(note: iNote): Note\n  updateNoteCategory(userId: String!, noteId: String!, categoryId: String!): Note\n  deleteNote(userId: String!, noteId: String!): DeleteNotePayload\n  createCategory(id: String!, categories: [String]!): [Category]\n}\n\nschema {\n  query: Query\n  mutation: Mutation\n}\n",
+              "ApiId": {
+                "Fn::GetAtt": [
+                  "GraphQlApi",
+                  "ApiId"
+                ]
+              }
+            }
+          },
+          "GraphQlDsNotesRole": {
+            "Type": "AWS::IAM::Role",
+            "Properties": {
+              "AssumeRolePolicyDocument": {
+                "Version": "2012-10-17",
+                "Statement": [
+                  {
+                    "Effect": "Allow",
+                    "Principal": {
+                      "Service": [
+                        "appsync.amazonaws.com"
+                      ]
+                    },
+                    "Action": [
+                      "sts:AssumeRole"
+                    ]
+                  }
+                ]
+              },
+              "Policies": [
+                {
+                  "PolicyName": "GraphQlDsNotesPolicy",
+                  "PolicyDocument": {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                      {
+                        "Action": [
+                          "dynamodb:DeleteItem",
+                          "dynamodb:GetItem",
+                          "dynamodb:PutItem",
+                          "dynamodb:Query",
+                          "dynamodb:Scan",
+                          "dynamodb:UpdateItem",
+                          "dynamodb:BatchGetItem",
+                          "dynamodb:BatchWriteItem"
+                        ],
+                        "Effect": "Allow",
+                        "Resource": [
+                          {
+                            "Fn::Join": [
+                              ":",
+                              [
+                                "arn",
+                                "aws",
+                                "dynamodb",
+                                "eu-west-1",
+                                {
+                                  "Ref": "AWS::AccountId"
+                                },
+                                {
+                                  "Fn::Join": [
+                                    "/",
+                                    [
+                                      "table",
+                                      "Notes"
+                                    ]
+                                  ]
+                                }
+                              ]
+                            ]
+                          },
+                          {
+                            "Fn::Join": [
+                              "/",
+                              [
+                                {
+                                  "$ref": "$[\"service\"][\"provider\"][\"compiledCloudFormationTemplate\"][\"Resources\"][\"GraphQlDsNotesRole\"][\"Properties\"][\"Policies\"][0][\"PolicyDocument\"][\"Statement\"][0][\"Resource\"][0]"
+                                },
+                                "*"
+                              ]
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          "GraphQlDsNotes": {
+            "Type": "AWS::AppSync::DataSource",
+            "Properties": {
+              "ApiId": {
+                "Fn::GetAtt": [
+                  "GraphQlApi",
+                  "ApiId"
+                ]
+              },
+              "Name": "Notes",
+              "Description": "Lambda DataSource",
+              "Type": "AMAZON_DYNAMODB",
+              "ServiceRoleArn": {
+                "Fn::GetAtt": [
+                  "GraphQlDsNotesRole",
+                  "Arn"
+                ]
+              },
+              "DynamoDBConfig": {
+                "AwsRegion": "eu-west-1",
+                "TableName": "Notes",
+                "UseCallerCredentials": false
+              }
+            }
+          },
+          "GraphQlResolverQuerygetCategories": {
+            "Type": "AWS::AppSync::Resolver",
+            "DependsOn": "GraphQlSchema",
+            "Properties": {
+              "ApiId": {
+                "Fn::GetAtt": [
+                  "GraphQlApi",
+                  "ApiId"
+                ]
+              },
+              "TypeName": "Query",
+              "FieldName": "getCategories",
+              "RequestMappingTemplate": "{\n    \"version\" : \"2017-02-28\",\n    \"operation\" : \"GetItem\",\n    \"key\" : {\n        \"id\" : { \"S\" : \"${context.arguments.id}\" },\n        \"type\" : { \"S\" : \"categories\"},\n    }\n}\n",
+              "ResponseMappingTemplate": "$util.toJson($context.result.categories)\n",
+              "DataSourceName": {
+                "Fn::GetAtt": [
+                  "GraphQlDsNotes",
+                  "Name"
+                ]
+              }
+            }
+          },
+          "GraphQlResolverMutationcreateCategory": {
+            "Type": "AWS::AppSync::Resolver",
+            "DependsOn": "GraphQlSchema",
+            "Properties": {
+              "ApiId": {
+                "Fn::GetAtt": [
+                  "GraphQlApi",
+                  "ApiId"
+                ]
+              },
+              "TypeName": "Mutation",
+              "FieldName": "createCategory",
+              "RequestMappingTemplate": "#set($categories = [])\n#foreach($category in ${context.arguments.categories})\n    $util.qr($categories.add({ \"M\": {\n        \"id\": { \"S\": $category }\n    }}))\n#end\n\n{\n    \"version\" : \"2017-02-28\",\n    \"operation\" : \"PutItem\",\n    \"key\" : {\n        \"id\" : { \"S\" : \"${context.arguments.id}\" },\n        \"type\": { \"S\": \"categories\" },\n    },\n    \"attributeValues\" : {\n        \"categories\": { \"L\" : $util.toJson($categories)},\n    }\n}\n",
+              "ResponseMappingTemplate": "$util.toJson($ctx.result.categories)\n",
+              "DataSourceName": {
+                "Fn::GetAtt": [
+                  "GraphQlDsNotes",
+                  "Name"
+                ]
+              }
+            }
+          },
+          "GraphQlResolverQuerygetNotes": {
+            "Type": "AWS::AppSync::Resolver",
+            "DependsOn": "GraphQlSchema",
+            "Properties": {
+              "ApiId": {
+                "Fn::GetAtt": [
+                  "GraphQlApi",
+                  "ApiId"
+                ]
+              },
+              "TypeName": "Query",
+              "FieldName": "getNotes",
+              "RequestMappingTemplate": "{\n    \"version\" : \"2017-02-28\",\n    \"operation\" : \"Query\",\n    \"query\" : {\n        \"expression\": \"id = :id and begins_with(#type, :type)\",\n        \"expressionNames\": { \"#type\": \"type\" },\n        \"expressionValues\" : {\n            \":id\" : {\n                \"S\" : \"${ctx.args.userId}\"\n            },\n            \":type\": {\n                \"S\": \"note\"\n            }\n        }\n    }\n}\n",
+              "ResponseMappingTemplate": "$util.toJson($ctx.result.items)\n",
+              "DataSourceName": {
+                "Fn::GetAtt": [
+                  "GraphQlDsNotes",
+                  "Name"
+                ]
+              }
+            }
+          },
+          "GraphQlResolverMutationcreateNote": {
+            "Type": "AWS::AppSync::Resolver",
+            "DependsOn": "GraphQlSchema",
+            "Properties": {
+              "ApiId": {
+                "Fn::GetAtt": [
+                  "GraphQlApi",
+                  "ApiId"
+                ]
+              },
+              "TypeName": "Mutation",
+              "FieldName": "createNote",
+              "RequestMappingTemplate": "{\n    \"version\" : \"2017-02-28\",\n    \"operation\" : \"PutItem\",\n    \"key\" : {\n        \"id\" : { \"S\" : \"${context.arguments.note.userId}\" },\n        \"type\": { \"S\": \"note#${context.arguments.note.noteId}\" },\n    },\n    \"attributeValues\" : {\n        \"noteId\": { \"S\" : \"${context.arguments.note.noteId}\"},\n        \"categoryId\": { \"S\" : \"${context.arguments.note.categoryId}\" },\n        \"title\": { \"S\" : \"${context.arguments.note.title}\"},\n        \"updatedAt\": { \"S\" : \"${context.arguments.note.updatedAt}\"},\n    }\n}\n",
+              "ResponseMappingTemplate": "$util.toJson($ctx.result.items)\n",
+              "DataSourceName": {
+                "Fn::GetAtt": [
+                  "GraphQlDsNotes",
+                  "Name"
+                ]
+              }
+            }
+          },
+          "GraphQlResolverMutationupdateNote": {
+            "Type": "AWS::AppSync::Resolver",
+            "DependsOn": "GraphQlSchema",
+            "Properties": {
+              "ApiId": {
+                "Fn::GetAtt": [
+                  "GraphQlApi",
+                  "ApiId"
+                ]
+              },
+              "TypeName": "Mutation",
+              "FieldName": "updateNote",
+              "RequestMappingTemplate": "{\n    \"version\" : \"2017-02-28\",\n    \"operation\" : \"UpdateItem\",\n    \"key\" : {\n        \"id\" : { \"S\" : \"${context.arguments.note.userId}\" },\n        \"type\": { \"S\": \"note#${context.arguments.note.noteId}\" },\n    },\n    \"update\" : {\n        #if( $context.arguments.note.text != '' )\n            \"expression\": \"SET #t = :text, #u = :updatedAt\",\n        #else\n            \"expression\": \"REMOVE #t SET #u = :updatedAt\",\n        #end\n        \"expressionNames\": {\n            \"#t\": \"text\",\n            \"#u\": \"updatedAt\",\n        },\n        \"expressionValues\" : {\n            \":updatedAt\": { \"S\" : \"${context.arguments.note.updatedAt}\"},\n            #if( $context.arguments.note.text != '' )\n                \":text\": { \"S\" : \"${context.arguments.note.text}\"},\n            #end\n        }\n    }\n}\n",
+              "ResponseMappingTemplate": "$util.toJson($ctx.result)\n",
+              "DataSourceName": {
+                "Fn::GetAtt": [
+                  "GraphQlDsNotes",
+                  "Name"
+                ]
+              }
+            }
+          },
+          "GraphQlResolverMutationupdateNoteCategory": {
+            "Type": "AWS::AppSync::Resolver",
+            "DependsOn": "GraphQlSchema",
+            "Properties": {
+              "ApiId": {
+                "Fn::GetAtt": [
+                  "GraphQlApi",
+                  "ApiId"
+                ]
+              },
+              "TypeName": "Mutation",
+              "FieldName": "updateNoteCategory",
+              "RequestMappingTemplate": "{\n    \"version\" : \"2017-02-28\",\n    \"operation\" : \"UpdateItem\",\n    \"key\" : {\n        \"id\" : { \"S\" : \"${context.arguments.userId}\" },\n        \"type\": { \"S\": \"note#${context.arguments.noteId}\" },\n    },\n    \"update\" : {\n        \"expression\": \"SET #c = :categoryId\",\n        \"expressionNames\": {\n            \"#c\": \"categoryId\",\n        },\n        \"expressionValues\" : {\n            \":categoryId\": { \"S\" : \"${context.arguments.categoryId}\"},\n        }\n    }\n}\n",
+              "ResponseMappingTemplate": "$util.toJson($ctx.result)\n",
+              "DataSourceName": {
+                "Fn::GetAtt": [
+                  "GraphQlDsNotes",
+                  "Name"
+                ]
+              }
+            }
+          },
+          "GraphQlResolverMutationdeleteNote": {
+            "Type": "AWS::AppSync::Resolver",
+            "DependsOn": "GraphQlSchema",
+            "Properties": {
+              "ApiId": {
+                "Fn::GetAtt": [
+                  "GraphQlApi",
+                  "ApiId"
+                ]
+              },
+              "TypeName": "Mutation",
+              "FieldName": "deleteNote",
+              "RequestMappingTemplate": "{\n    \"version\" : \"2017-02-28\",\n    \"operation\" : \"DeleteItem\",\n    \"key\" : {\n        \"id\" : { \"S\" : \"${context.arguments.userId}\" },\n        \"type\": { \"S\": \"note#${context.arguments.noteId}\" },\n    },\n}\n",
+              "ResponseMappingTemplate": "$util.toJson({\n    \"noteId\": \"${context.arguments.noteId}\",\n    \"deleted\": true\n})\n",
+              "DataSourceName": {
+                "Fn::GetAtt": [
+                  "GraphQlDsNotes",
+                  "Name"
+                ]
+              }
+            }
+          }
+        },
+        "Outputs": {
+          "ServerlessDeploymentBucketName": {
+            "Value": {
+              "Ref": "ServerlessDeploymentBucket"
+            }
+          },
+          "GraphQlApiUrl": {
+            "Value": {
+              "Fn::GetAtt": [
+                "GraphQlApi",
+                "GraphQLUrl"
+              ]
+            }
+          },
+          "GraphQlApiKeyDefault": {
+            "Value": {
+              "Fn::GetAtt": [
+                "GraphQlApiKeyDefault",
+                "ApiKey"
+              ]
+            }
+          }
+        }
+      },
+      "coreCloudFormationTemplate": {
+        "AWSTemplateFormatVersion": "2010-09-09",
+        "Description": "The AWS CloudFormation template for this Serverless application",
+        "Resources": {
+          "ServerlessDeploymentBucket": {
+            "Type": "AWS::S3::Bucket",
+            "Properties": {
+              "BucketEncryption": {
+                "ServerSideEncryptionConfiguration": [
+                  {
+                    "ServerSideEncryptionByDefault": {
+                      "SSEAlgorithm": "AES256"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "Outputs": {
+          "ServerlessDeploymentBucketName": {
+            "Value": {
+              "Ref": "ServerlessDeploymentBucket"
+            }
+          }
+        }
+      }
+    },
+    "custom": {
+      "appSync": {
+        "name": "Roadrunner",
+        "authenticationType": "API_KEY",
+        "serviceRole": "AppSyncRole",
+        "schema": "src/schema.graphql",
+        "mappingTemplatesLocation": "src/mapping-templates",
+        "mappingTemplates": [
+          {
+            "dataSource": "Notes",
+            "type": "Query",
+            "field": "getCategories",
+            "request": "get-categories/request-mapping-template.vtl",
+            "response": "get-categories/response-mapping-template.vtl"
+          },
+          {
+            "dataSource": "Notes",
+            "type": "Mutation",
+            "field": "createCategory",
+            "request": "create-category/request-mapping-template.vtl",
+            "response": "create-category/response-mapping-template.vtl"
+          },
+          {
+            "dataSource": "Notes",
+            "type": "Query",
+            "field": "getNotes",
+            "request": "get-notes/request-mapping-template.vtl",
+            "response": "get-notes/response-mapping-template.vtl"
+          },
+          {
+            "dataSource": "Notes",
+            "type": "Mutation",
+            "field": "createNote",
+            "request": "create-note/request-mapping-template.vtl",
+            "response": "create-note/response-mapping-template.vtl"
+          },
+          {
+            "dataSource": "Notes",
+            "type": "Mutation",
+            "field": "updateNote",
+            "request": "update-note/request-mapping-template.vtl",
+            "response": "update-note/response-mapping-template.vtl"
+          },
+          {
+            "dataSource": "Notes",
+            "type": "Mutation",
+            "field": "updateNoteCategory",
+            "request": "update-note-category/request-mapping-template.vtl",
+            "response": "update-note-category/response-mapping-template.vtl"
+          },
+          {
+            "dataSource": "Notes",
+            "type": "Mutation",
+            "field": "deleteNote",
+            "request": "delete-note/request-mapping-template.vtl",
+            "response": "delete-note/response-mapping-template.vtl"
+          }
+        ],
+        "dataSources": [
+          {
+            "type": "AMAZON_DYNAMODB",
+            "name": "Notes",
+            "description": "Lambda DataSource",
+            "config": {
+              "tableName": "Notes"
+            }
+          }
+        ]
+      }
+    },
+    "plugins": [
+      "serverless-pseudo-parameters",
+      "serverless-appsync-plugin"
+    ],
+    "pluginsData": {},
+    "functions": {},
+    "resources": {
+      "Resources": {
+        "Users": {
+          "Type": "AWS::DynamoDB::Table",
+          "Properties": {
+            "TableName": "Notes",
+            "AttributeDefinitions": [
+              {
+                "AttributeName": "id",
+                "AttributeType": "S"
+              },
+              {
+                "AttributeName": "type",
+                "AttributeType": "S"
+              }
+            ],
+            "KeySchema": [
+              {
+                "AttributeName": "id",
+                "KeyType": "HASH"
+              },
+              {
+                "AttributeName": "type",
+                "KeyType": "RANGE"
+              }
+            ],
+            "ProvisionedThroughput": {
+              "ReadCapacityUnits": 1,
+              "WriteCapacityUnits": 1
+            }
+          }
+        },
+        "AppSyncRole": {
+          "Type": "AWS::IAM::Role",
+          "Properties": {
+            "RoleName": "AppSyncRole",
+            "AssumeRolePolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Principal": {
+                    "Service": [
+                      "appsync.amazonaws.com"
+                    ]
+                  },
+                  "Action": [
+                    "sts:AssumeRole"
+                  ]
+                }
+              ]
+            },
+            "Policies": [
+              {
+                "PolicyName": "Lambda-AppSyncRole-Policy",
+                "PolicyDocument": {
+                  "Version": "2012-10-17",
+                  "Statement": [
+                    {
+                      "Effect": "Allow",
+                      "Action": [
+                        "lambda:invokeFunction"
+                      ],
+                      "Resource": "*"
+                    },
+                    {
+                      "Effect": "Allow",
+                      "Action": [
+                        "dynamodb:*"
+                      ],
+                      "Resource": "*"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      },
+      "Outputs": {}
+    },
+    "serviceFilename": "serverless.yml",
+    "layers": {}
+  },
+  "package": {
+    "artifactDirectoryName": "serverless/awesomotes/dev/1572771956853-2019-11-03T09:05:56.853Z",
+    "artifact": ""
+  }
+}

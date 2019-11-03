@@ -1,0 +1,18 @@
+#set($categories = [])
+#foreach($category in ${context.arguments.categories})
+    $util.qr($categories.add({ "M": {
+        "id": { "S": $category }
+    }}))
+#end
+
+{
+    "version" : "2017-02-28",
+    "operation" : "PutItem",
+    "key" : {
+        "id" : { "S" : "${context.arguments.id}" },
+        "type": { "S": "categories" },
+    },
+    "attributeValues" : {
+        "categories": { "L" : $util.toJson($categories)},
+    }
+}
